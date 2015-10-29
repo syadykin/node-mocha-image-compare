@@ -1,1 +1,1 @@
-# node-test-init
+# node-mocha-image-compare
