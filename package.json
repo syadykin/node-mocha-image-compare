@@ -1,6 +1,6 @@
 {
   "name": "mocha-image-compare",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Compares given image with provided buffer or file",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,6 @@
   "homepage": "https://github.com/syadykin/node-mocha-image-compare",
   "dependencies": {
     "async": "^1.5.0",
-    "cp": "^0.2.0",
     "extend": "^3.0.0",
     "gm": "^1.21.1"
   }

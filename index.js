@@ -1,8 +1,6 @@
 var crypto = require('crypto'),
     fs = require('fs'),
-    path = require('path'),
     async = require('async'),
-    cp = require('cp'),
     gm = require('gm'),
     extend = require('extend'),
 
@@ -10,18 +8,32 @@ var crypto = require('crypto'),
 
 var TestImage = function (options) {
 
-  var defaults = {
-    report: './report',
-    highlight: 'red'
-  };
+  if (!this.instantiated) {
 
-  this.tests = [];
-  this.options = extend(defaults, options || {});
+    this.options = {
+      report: './report',
+      highlight: 'red',
+      threshold: 0.001
+    };
+
+    this.tests = [];
+
+    this.instantiated = true;
+  }
+
+  extend(this.options, options || {});
 
   return this;
 };
 
 function compare(test, file, threshold, source, cb) {
+
+  if (arguments.length === 4) {
+    cb = source;
+    source = threshold;
+    threshold = this.options.threshold;
+  }
+
   var that = this,
       step = test.test,
       dirprefix = this.options.report,
@@ -43,10 +55,7 @@ function compare(test, file, threshold, source, cb) {
     threshold: threshold,
     test: testfile,
     name: stack,
-    src: dirprefix + '/' + fileprefix + '-src' +
-                                  path.extname(file).toLowerCase(),
-    dst: dirprefix + '/' + fileprefix + '-dst.',
-    diff: dirprefix + '/' + fileprefix + '-diff.png',
+    file: file,
     report: dirprefix + '/' + fileprefix + '-report.json'
   };
 
@@ -58,18 +67,31 @@ function compare(test, file, threshold, source, cb) {
         return !exists ? fs.mkdir(that.options.report, cb) : cb();
       });
     },
-    cp: function(cb) {
-      cp(file, info.src, cb);
+    read: function(cb) {
+      async.parallel({
+        src: async.apply(fs.readFile, file),
+        dst: function(cb) {
+          if (source instanceof Buffer)
+            return cb(null, source);
+          return fs.readFile(source, cb);
+        }
+      }, cb);
     },
-    src: ['cp', function(cb) {
-      gm(info.src).identify(cb);
+    src: ['read', function(cb, data) {
+      gm(data.read.src).identify(cb);
     }],
-    dst: ['mkdir', function(cb) {
-      gm(source).identify(cb);
+    dst: ['read', function(cb, data) {
+      gm(data.read.dst).identify(cb);
     }],
-    write: ['dst', function(cb, data) {
-      info.dst += data.dst.format.toLowerCase();
-      fs.writeFile(info.dst, source, cb);
+    write: ['mkdir', 'src', 'dst', function(cb, data) {
+      info.src = dirprefix + '/' + fileprefix + '-src.' +
+                                              data.src.format.toLowerCase();
+      info.dst = dirprefix + '/' + fileprefix + '-dst.' +
+                                              data.dst.format.toLowerCase();
+      async.parallel([
+        async.apply(fs.writeFile, info.src, data.read.src),
+        async.apply(fs.writeFile, info.dst, data.read.dst)
+      ], cb);
     }],
     basic: ['src', 'dst', function(cb, data) {
       var src = data.src,
@@ -94,13 +116,13 @@ function compare(test, file, threshold, source, cb) {
                                           src.Geometry, dst.Geometry));
       cb();
     }],
-    content: ['src', 'write', function(cb) {
-      gm.compare(info.src, info.dst,
-        {
-          file: info.diff,
-          tolerance: info.threshold,
-          highlightColor: that.options.highlight
-        }, cb);
+    content: ['write', function(cb) {
+      info.diff = dirprefix + '/' + fileprefix + '-diff.png';
+      gm.compare(info.src, info.dst, {
+        file: info.diff,
+        tolerance: info.threshold,
+        highlightColor: that.options.highlight
+      }, cb);
     }],
     equality: ['content', function(cb, data) {
       info.equality = data.content[1];
@@ -109,7 +131,7 @@ function compare(test, file, threshold, source, cb) {
       if (info.isEqual) return cb();
       cb('Images are differrent by content');
     }]
-  }, function(err, data) {
+  }, function(err) {
     var report = (err && err.message || err);
 
     if (report) info.error = report;
@@ -118,21 +140,38 @@ function compare(test, file, threshold, source, cb) {
     if (!err) return cb();
 
     report   += '\n\n';
-    report   += '\torig image: ' + info.src + '\n';
-    report   += '\tnew image:  ' + info.dst + '\n';
-    if (data.content)
+    if (info.src)
+      report += '\torig image: ' + info.src + '\n';
+    if (info.dst)
+      report += '\tnew image:  ' + info.dst + '\n';
+    if (info.diff)
       report += '\tdiff image: ' + info.diff + '\n';
-    else
-      delete info.diff;
     report   += '\treport:     ' + info.report;
 
     cb(new Error(report));
   });
 }
 
+function asSupertest() {
+  var args = Array.prototype.slice.apply(arguments),
+      fn = args.shift(),
+      cb = args.pop();
+
+  return function(err, res) {
+    if (err) return cb(err);
+    args.push(res.body, cb);
+    fn.apply(null, args);
+  };
+
+}
+
 TestImage.prototype.test = function(test) {
-  return compare.bind(this, test);
+  var fn = compare.bind(this, test);
+  fn.asSupertest = asSupertest.bind(this, fn);
+  return fn;
 };
+
+compare.asSupertest = asSupertest;
 
 var scope = new TestImage();
 
