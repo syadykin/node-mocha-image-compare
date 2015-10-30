@@ -74,7 +74,7 @@ it('my cool test', function(done) {
   // other stuff
   api.get('/')
      .expect('Content-Type': 'image/jpeg')
-     .end(compare.asSupertest('/file/to/compare/with.jpg' done));
+     .end(compare.asSupertest('/file/to/compare/with.jpg', done));
 });
 ```
 
@@ -82,10 +82,10 @@ it('my cool test', function(done) {
 
 Report folder contains up to four files per compare invocation:
 
-1. <sha1-hash>-src.<filetype>: original file
-2. <sha1-hash>-dst.<filetype>: resulting file saved from buffer/file
-3. <sha1-hash>-diff.png: image shows visual difference between images
-4. <sha1-hash>-report.json: JSON encoded test results.
+1. &lt;sha1-hash&gt;-src.&lt;filetype&gt;: original file
+2. &lt;sha1-hash&gt;-dst.&lt;filetype&gt;: resulting file saved from buffer/file
+3. &lt;sha1-hash&gt;-diff.png: image shows visual difference between images
+4. &lt;sha1-hash&gt;-report.json: JSON encoded test results.
 
 Example JSON report is:
 
