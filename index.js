@@ -47,7 +47,7 @@ function compare(test, file, threshold, source, cb) {
     step = step.parent;
   }
 
-  fileprefix = fileprefix.digest('hex');
+  fileprefix = fileprefix.update(file).digest('hex');
 
   stack.reverse();
 
@@ -93,7 +93,7 @@ function compare(test, file, threshold, source, cb) {
         async.apply(fs.writeFile, info.dst, data.read.dst)
       ], cb);
     }],
-    basic: ['src', 'dst', function(cb, data) {
+    basic: ['src', 'dst', 'write', function(cb, data) {
       var src = data.src,
           dst = data.dst;
 
@@ -116,7 +116,7 @@ function compare(test, file, threshold, source, cb) {
                                           src.Geometry, dst.Geometry));
       cb();
     }],
-    content: ['write', function(cb) {
+    content: ['write', 'basic', function(cb) {
       info.diff = dirprefix + '/' + fileprefix + '-diff.png';
       gm.compare(info.src, info.dst, {
         file: info.diff,

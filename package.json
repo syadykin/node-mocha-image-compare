@@ -1,6 +1,6 @@
 {
   "name": "mocha-image-compare",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Compares given image with provided buffer or file",
   "main": "index.js",
   "scripts": {
